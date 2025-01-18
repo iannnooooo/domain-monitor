@@ -1,0 +1,42 @@
+name: Domain Monitor
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily at midnight
+  workflow_dispatch:      # Allows manual trigger
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install python-whois dnspython requests
+
+      - name: Run domain monitor
+        run: python monitor.py
+
+      - name: Create report
+        run: |
+          echo "Domain Monitor Report - $(date)" > report.md
+          python monitor.py >> report.md
+
+      - name: Send report to issues
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('report.md', 'utf8');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Domain Monitor Report - ${new Date().toISOString().split('T')[0]}`,
+              body: report
+            });
