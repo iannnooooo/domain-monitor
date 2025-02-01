@@ -37,10 +37,7 @@ def check_domain(domain):
 def main():
     # Add your target domain variations here
     domains = [
-        'techops.com',
-        'tech-ops.com',
-        'techops.net',
-        'techops.org'
+        'safaricom.net'
     ]
 
     results = []
