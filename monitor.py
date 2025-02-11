@@ -35,7 +35,7 @@ def check_domain(domain):
         return {'domain': domain, 'error': str(e)}
 
 def main():
-    # Add your target domain variations here
+ 
     domains = [
         'safaricom.net'
     ]
@@ -45,7 +45,7 @@ def main():
         result = check_domain(domain)
         results.append(result)
 
-    # Print results in markdown format
+  
     print("## Domain Monitor Results\n")
     for result in results:
         print(f"### {result['domain']}\n")
