@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Comprehensive Domain Monitor Script"""
+"""Comprehensive Domain Monitor Script with Domain Search"""
 
 import whois
 import requests
@@ -57,18 +57,34 @@ def check_domain(domain):
         return {'domain': domain, 'error': str(e)}
 
 
+def search_domains(keyword):
+    url = f"https://crt.sh/?q=%25{keyword}%25&output=json"
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            unique_domains = list({entry['name_value'] for entry in data})
+            return unique_domains
+        else:
+            return []
+    except Exception as e:
+        return [f"Error fetching data: {e}"]
+
+
 def main():
-    domains = [
-        'safaricom.net',
-        'example.com'
-    ]
+    keyword = 'safaricom'
+    found_domains = search_domains(keyword)
+
+    print(f"## Domains Containing '{keyword}'\n")
+    for domain in found_domains:
+        print(f"- {domain}")
 
     results = []
-    for domain in domains:
+    for domain in found_domains[:5]:  # Limit checks for demo purposes
         result = check_domain(domain)
         results.append(result)
 
-    print("## Domain Monitor Results\n")
+    print("\n## Domain Monitor Results\n")
     for result in results:
         print(f"### {result['domain']}\n")
         if 'error' in result:
