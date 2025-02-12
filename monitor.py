@@ -58,7 +58,7 @@ def check_domain(domain):
         return {'domain': domain, 'error': str(e)}
 
 
-def search_domains(keyword, retries=3, delay=5):
+def search_domains(keyword, retries=5, delay=5):
     url = f"https://crt.sh/?q=%25{keyword}%25&output=json"
     for attempt in range(retries):
         try:
@@ -71,7 +71,23 @@ def search_domains(keyword, retries=3, delay=5):
                 print(f"Attempt {attempt + 1}: Failed with status code {response.status_code}")
         except Exception as e:
             print(f"Attempt {attempt + 1}: Error fetching data - {e}")
-            time.sleep(delay)
+            time.sleep(delay * (2 ** attempt))  # Exponential backoff
+
+    print("Primary source failed. Trying alternative source...")
+    return fallback_domain_search(keyword)
+
+
+def fallback_domain_search(keyword):
+    fallback_url = f"https://sslmate.com/api/v1/certs?domain={keyword}"
+    try:
+        response = requests.get(fallback_url, timeout=30)
+        if response.status_code == 200:
+            data = response.json()
+            return list({entry['name'] for entry in data.get('results', [])})
+        else:
+            print(f"Fallback failed with status code {response.status_code}")
+    except Exception as e:
+        print(f"Fallback error: {e}")
     return []
 
 
