@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Comprehensive Domain Monitor Script with Domain Search"""
+"""Comprehensive Domain Monitor Script with Domain Search and Retry Mechanism"""
 
 import whois
 import requests
@@ -8,6 +8,7 @@ import ssl
 import socket
 from datetime import datetime
 import json
+import time
 
 
 def check_ssl_certificate(domain):
@@ -57,18 +58,21 @@ def check_domain(domain):
         return {'domain': domain, 'error': str(e)}
 
 
-def search_domains(keyword):
+def search_domains(keyword, retries=3, delay=5):
     url = f"https://crt.sh/?q=%25{keyword}%25&output=json"
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            unique_domains = list({entry['name_value'] for entry in data})
-            return unique_domains
-        else:
-            return []
-    except Exception as e:
-        return [f"Error fetching data: {e}"]
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, timeout=30)
+            if response.status_code == 200:
+                data = response.json()
+                unique_domains = list({entry['name_value'] for entry in data})
+                return unique_domains
+            else:
+                print(f"Attempt {attempt + 1}: Failed with status code {response.status_code}")
+        except Exception as e:
+            print(f"Attempt {attempt + 1}: Error fetching data - {e}")
+            time.sleep(delay)
+    return []
 
 
 def main():
