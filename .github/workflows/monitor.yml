@@ -7,6 +7,7 @@ on:
 
 permissions:
   issues: write          # Add explicit permission to create issues
+  contents: write        # We also need “contents” to create a Gist
 
 jobs:
   monitor:
@@ -29,18 +30,66 @@ jobs:
         
       - name: Create report
         run: |
-          echo "Domain Monitor Report - $(date)" > report.md
+          echo "Domain Monitor Report - $(date -u +'%Y-%m-%d')" > report.md
           python monitor.py >> report.md
-          
-      - name: Send report to issues
+
+      - name: Send report to issues (with length check)
         uses: actions/github-script@v6
         with:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('report.md', 'utf8');
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `Domain Monitor Report - ${new Date().toISOString().split('T')[0]}`,
-              body: report
-            });
+            const MAX_BODY = 65536;
+
+            // If report is too long, publish full text as a private Gist
+            if (report.length > MAX_BODY) {
+              // Create a Gist with the full report
+              const gist = await github.rest.gists.create({
+                files: {
+                  "full-report.txt": { content: report }
+                },
+                public: false,
+                description: `Full Domain Monitor Report for ${new Date().toISOString().split('T')[0]}`
+              });
+
+              const gistUrl = gist.data.html_url;
+              // Truncate: take first 30k chars and last 30k chars, with a notice in between
+              const head = report.slice(0, 30000);
+              const tail = report.slice(-30000);
+
+              const truncatedBody = `
+              ## Domain Monitor Report (truncated)
+
+              _Entire report exceeded 65 536 chars and was uploaded as a Gist. See below for link._
+
+              **Full report (Gist):** ${gistUrl}
+
+              ---
+              ### [Output: First 30 000 characters]
+              \`\`\`
+              ${head}
+              \`\`\`
+
+              _…log truncated here (see full details at Gist link above) …_
+
+              ### [Output: Last 30 000 characters]
+              \`\`\`
+              ${tail}
+              \`\`\`
+              `;
+
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Domain Monitor Report – ${new Date().toISOString().split('T')[0]}`,
+                body: truncatedBody
+              });
+            } else {
+              // Report is small enough—just create the issue normally
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Domain Monitor Report – ${new Date().toISOString().split('T')[0]}`,
+                body: report
+              });
+            }
